@@ -116,6 +116,18 @@
   }
   .truck-select option { background: var(--bg); color: var(--text); font-size: 14px; }
 
+  td.excav-cell {
+    padding: 0; position: sticky; left: 128px; z-index: 10;
+    border-right: 1px solid var(--border);
+  }
+  .excav-select {
+    width: 100%; background: transparent; border: none; color: var(--green);
+    font-family: var(--font); font-size: 11px; font-weight: 700;
+    padding: 8px 2px; cursor: pointer; text-align: center;
+    appearance: none; -webkit-appearance: none;
+  }
+  .excav-select option { background: var(--bg); color: var(--text); font-size: 14px; }
+
   td.ts-cell {
     padding: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
     min-width: 74px; text-align: center; cursor: pointer;
@@ -137,9 +149,11 @@
   tbody tr:nth-child(odd) td { background: var(--bg); }
   tbody tr:nth-child(even) td { background: var(--bg2); }
   tbody tr:nth-child(odd) td.row-num,
-  tbody tr:nth-child(odd) td.truck-cell { background: var(--bg); }
+  tbody tr:nth-child(odd) td.truck-cell,
+  tbody tr:nth-child(odd) td.excav-cell { background: var(--bg); }
   tbody tr:nth-child(even) td.row-num,
-  tbody tr:nth-child(even) td.truck-cell { background: var(--bg2); }
+  tbody tr:nth-child(even) td.truck-cell,
+  tbody tr:nth-child(even) td.excav-cell { background: var(--bg2); }
 
   /* ==================== MODAL ==================== */
   .modal-overlay {
@@ -218,6 +232,10 @@ const TRUCKS = [
   "RK150-1436","RK150-1437","RK150-1438","RK150-1439","RK150-1440","RK150-1441"
 ];
 
+const EXCAVATORS = [
+  "","EK200-1420","EK125-1321","EK125-1442","EK125-1443","EK125-1444","EB850-1245","EB850-1376"
+];
+
 const COLS = [
   { key:"B", group:"first", label:"Truck Stop\nto Load" },
   { key:"C", group:"first", label:"Swing\nBack 1" },
@@ -257,7 +275,7 @@ function save() {
 
 function emptyGrid(n) {
   const g = [];
-  for (let i = 0; i < n; i++) { const r = { truck:"" }; COLS.forEach(c => r[c.key] = ""); g.push(r); }
+  for (let i = 0; i < n; i++) { const r = { truck:"", excav:"" }; COLS.forEach(c => r[c.key] = ""); g.push(r); }
   return g;
 }
 
@@ -286,12 +304,16 @@ function deleteStudy(i) {
 
 function addRows() {
   const s = state.studies[state.activeIdx]; if (!s) return;
-  for (let i = 0; i < 10; i++) { const r = {truck:""}; COLS.forEach(c => r[c.key] = ""); s.grid.push(r); }
+  for (let i = 0; i < 10; i++) { const r = {truck:"", excav:""}; COLS.forEach(c => r[c.key] = ""); s.grid.push(r); }
   save(); render();
 }
 
 function setTruck(ri, val) {
   state.studies[state.activeIdx].grid[ri].truck = val; save();
+}
+
+function setExcav(ri, val) {
+  state.studies[state.activeIdx].grid[ri].excav = val; save();
 }
 
 function tapCell(ri, ck) {
@@ -323,9 +345,9 @@ function closeModal() { state.modal = null; render(); }
 
 function exportCSV() {
   const s = state.studies[state.activeIdx]; if (!s) return;
-  let csv = "Row,Truck No.," + COLS.map(c => c.label.replace("\n"," ")).join(",") + "\n";
+  let csv = "Row,Truck No.,Excavator," + COLS.map(c => c.label.replace("\n"," ")).join(",") + "\n";
   s.grid.forEach((r, i) => {
-    csv += [i+1, r.truck||"", ...COLS.map(c => r[c.key]||"")].join(",") + "\n";
+    csv += [i+1, r.truck||"", r.excav||"", ...COLS.map(c => r[c.key]||"")].join(",") + "\n";
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
@@ -380,6 +402,7 @@ function render() {
     h += '<thead><tr>';
     h += '<th class="sticky" style="left:0;min-width:28px;background:var(--surface)">#</th>';
     h += '<th class="sticky" style="left:28px;min-width:100px;background:var(--surface)">Truck No.</th>';
+    h += '<th class="sticky" style="left:128px;min-width:96px;background:var(--surface);color:var(--green)">Excavator</th>';
     h += '<th colspan="2" class="group-header col-first" style="color:var(--pink)">First Bucket Dump</th>';
     h += '<th colspan="9" class="group-header col-cycle" style="color:var(--blue)">Cycle Time</th>';
     h += '<th colspan="2" class="group-header col-dump" style="color:var(--amber)">Dump &amp; Manoeuvre</th>';
@@ -390,6 +413,7 @@ function render() {
     h += '<tr>';
     h += '<th class="sticky" style="left:0;min-width:28px;background:var(--surface)"></th>';
     h += '<th class="sticky" style="left:28px;min-width:100px;background:var(--surface)"></th>';
+    h += '<th class="sticky" style="left:128px;min-width:96px;background:var(--surface)"></th>';
     COLS.forEach(c => {
       const cls = c.group==="first"?"col-first":c.group==="cycle"?"col-cycle":c.group==="dump"?"col-dump":"col-ret";
       h += `<th class="${cls}" style="white-space:pre-line;line-height:1.3;padding:4px 2px;font-size:9px">${c.label}</th>`;
@@ -404,6 +428,12 @@ function render() {
       h += `<td class="truck-cell" style="left:28px"><select class="truck-select" onchange="setTruck(${i},this.value)">`;
       TRUCKS.forEach(t => {
         h += `<option value="${t}" ${row.truck===t?'selected':''}>${t||'—'}</option>`;
+      });
+      h += '</select></td>';
+
+      h += `<td class="excav-cell" style="left:128px"><select class="excav-select" onchange="setExcav(${i},this.value)">`;
+      EXCAVATORS.forEach(e => {
+        h += `<option value="${e}" ${row.excav===e?'selected':''}>${e||'—'}</option>`;
       });
       h += '</select></td>';
 
