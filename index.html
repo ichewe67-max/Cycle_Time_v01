@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>Cycle Timer — JVChantete Earthworks</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a; --bg2: #111; --surface: #1a1a1a; --surface2: #222;
+    --border: #2a2a2a; --border2: #333; --border3: #444;
+    --amber: #f59e0b; --amber-dark: #b45309; --amber-bg: #1c1a0e;
+    --green: #22c55e; --green-bg: #0f1d14;
+    --blue: #3b82f6; --blue-bg: #0f1524;
+    --red: #ef4444; --pink: #ec4899; --pink-bg: #1d0f18;
+    --text: #e5e5e5; --text2: #a3a3a3; --text3: #737373; --text4: #525252;
+    --font: 'JetBrains Mono', 'SF Mono', monospace;
+  }
+
+  html, body {
+    font-family: var(--font); background: var(--bg); color: var(--text);
+    height: 100%; overflow: hidden; -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ==================== LAYOUT ==================== */
+  .app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
+
+  .top-bar {
+    flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 12px; z-index: 50;
+  }
+  .top-row { display: flex; align-items: center; gap: 8px; }
+  .logo { font-size: 18px; font-weight: 900; color: var(--amber); letter-spacing: 1px; flex: 1; }
+  .logo small { font-size: 10px; color: var(--text3); font-weight: 600; display: block; letter-spacing: 0.5px; }
+
+  .top-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: var(--bg); border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--text2); font-family: var(--font); font-size: 11px; font-weight: 600;
+    padding: 6px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .icon-btn:active { background: var(--surface2); }
+  .icon-btn.amber { border-color: var(--amber-dark); color: var(--amber); }
+
+  .study-bar {
+    flex-shrink: 0; background: var(--bg2); border-bottom: 1px solid var(--border);
+    padding: 6px 12px; display: flex; align-items: center; gap: 8px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .study-tab {
+    flex-shrink: 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-family: var(--font);
+    font-size: 11px; color: var(--text3); cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .study-tab.active { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+  .study-tab .close {
+    font-size: 13px; color: var(--text4); cursor: pointer; margin-left: 2px; line-height: 1;
+  }
+  .add-study {
+    flex-shrink: 0; background: none; border: 1px dashed var(--border2);
+    border-radius: 6px; padding: 5px 10px; font-family: var(--font);
+    font-size: 13px; color: var(--text4); cursor: pointer;
+  }
+
+  /* ==================== GRID ==================== */
+  .grid-wrap {
+    flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; position: relative;
+  }
+
+  table { border-collapse: separate; border-spacing: 0; min-width: max-content; }
+
+  thead th {
+    position: sticky; top: 0; z-index: 20; background: var(--surface);
+    border-bottom: 2px solid var(--amber-dark);
+  }
+  thead tr:nth-child(2) th { top: 34px; border-bottom: 1px solid var(--border2); }
+
+  th.sticky, td.sticky { position: sticky; left: 0; z-index: 10; }
+  thead th.sticky { z-index: 30; }
+
+  th {
+    font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.5px;
+    text-transform: uppercase; padding: 6px 4px; text-align: center;
+    white-space: nowrap; border-right: 1px solid var(--border);
+  }
+  th.group-header {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 8px 4px;
+  }
+  th.col-first { background: var(--pink-bg); }
+  th.col-cycle { background: var(--blue-bg); }
+  th.col-dump  { background: var(--amber-bg); }
+  th.col-ret   { background: var(--green-bg); }
+
+  td.row-num {
+    font-size: 10px; color: var(--text4); text-align: center; padding: 0 4px;
+    width: 28px; min-width: 28px; border-right: 1px solid var(--border);
+    position: sticky; left: 0; z-index: 10;
+  }
+
+  td.truck-cell {
+    padding: 0; position: sticky; left: 28px; z-index: 10;
+    border-right: 1px solid var(--border);
+  }
+  .truck-select {
+    width: 100%; background: transparent; border: none; color: var(--amber);
+    font-family: var(--font); font-size: 11px; font-weight: 700;
+    padding: 8px 2px; cursor: pointer; text-align: center;
+    appearance: none; -webkit-appearance: none;
+  }
+  .truck-select option { background: var(--bg); color: var(--text); font-size: 14px; }
+
+  td.ts-cell {
+    padding: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    min-width: 74px; text-align: center; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+  }
+  td.ts-cell:active { filter: brightness(1.3); }
+  td.ts-cell.has-value .ts-value { color: var(--text); }
+
+  .ts-value {
+    font-size: 12px; font-weight: 600; color: var(--text); padding: 8px 2px;
+    min-height: 38px; display: flex; align-items: center; justify-content: center;
+  }
+  .ts-empty {
+    font-size: 16px; color: var(--border2); padding: 8px 2px;
+    min-height: 38px; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Row colour banding */
+  tbody tr:nth-child(odd) td { background: var(--bg); }
+  tbody tr:nth-child(even) td { background: var(--bg2); }
+  tbody tr:nth-child(odd) td.row-num,
+  tbody tr:nth-child(odd) td.truck-cell { background: var(--bg); }
+  tbody tr:nth-child(even) td.row-num,
+  tbody tr:nth-child(even) td.truck-cell { background: var(--bg2); }
+
+  /* ==================== MODAL ==================== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal {
+    background: var(--surface); border-radius: 16px 16px 0 0;
+    padding: 20px 16px 28px; width: 100%; max-width: 480px;
+  }
+  .modal-title {
+    font-size: 13px; font-weight: 800; color: var(--amber);
+    letter-spacing: 1px; margin-bottom: 14px; text-transform: uppercase;
+  }
+  .modal-sub { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+  .modal-btn {
+    width: 100%; padding: 14px; border: 1px solid var(--border2); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-family: var(--font);
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px;
+    text-align: center;
+  }
+  .modal-btn:active { background: var(--surface2); }
+  .modal-btn.stamp { border-color: var(--amber-dark); color: var(--amber); font-weight: 800; }
+  .modal-btn.clear { border-color: #7f1d1d; color: var(--red); }
+  .modal-btn.cancel { color: var(--text4); border-color: var(--border); }
+
+  .modal-input {
+    width: 100%; padding: 12px; border: 1px solid var(--border2); border-radius: 8px;
+    background: var(--bg); color: var(--amber); font-family: var(--font);
+    font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 10px;
+  }
+
+  /* ==================== BOTTOM BAR ==================== */
+  .bottom-bar {
+    flex-shrink: 0; background: var(--surface); border-top: 1px solid var(--border);
+    padding: 8px 12px; padding-bottom: max(8px, env(safe-area-inset-bottom));
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--text3);
+  }
+  .status { display: flex; gap: 12px; }
+  .status-item { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.green { background: var(--green); }
+  .dot.amber { background: var(--amber); }
+
+  /* ==================== EMPTY STATE ==================== */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; padding: 40px; text-align: center;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 16px; font-weight: 800; color: var(--amber); letter-spacing: 1px; margin-bottom: 8px; }
+  .empty-text { font-size: 12px; color: var(--text3); line-height: 1.6; margin-bottom: 24px; }
+  .empty-btn {
+    padding: 14px 32px; background: var(--amber); color: var(--bg); border: none;
+    border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 800;
+    letter-spacing: 1px; cursor: pointer;
+  }
+  .empty-btn:active { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app"></div>
+
+<script>
+// ======================== DATA ========================
+const TRUCKS = [
+  "","RK785-1301","RK785-1302","RK785-1303","RK785-1304","RK785-1305",
+  "RC777-1306","RC777-1307","RC777-1308","RC777-1309","RC777-1310",
+  "RC777-1311","RC777-1312","RC777-1313","RC777-1314","RC777-1315",
+  "RC777-1316","RC777-1317","RC777-1318","RC777-1319","RC777-1320",
+  "RC777-1421","RC777-1422","RC777-1423","RC777-1424","RC777-1425",
+  "RC777-1426","RC777-1427","RC777-1428","RC777-1429","RC777-1430",
+  "RK150-1431","RK150-1432","RK150-1433","RK150-1434","RK150-1435",
+  "RK150-1436","RK150-1437","RK150-1438","RK150-1439","RK150-1440","RK150-1441"
+];
+
+const COLS = [
+  { key:"B", group:"first", label:"Truck Stop\nto Load" },
+  { key:"C", group:"first", label:"Swing\nBack 1" },
+  { key:"D", group:"cycle", label:"Swing\nBack 2" },
+  { key:"E", group:"cycle", label:"Swing\nBack 3" },
+  { key:"F", group:"cycle", label:"Swing\nBack 4" },
+  { key:"G", group:"cycle", label:"Swing\nBack 5" },
+  { key:"H", group:"cycle", label:"Swing\nBack 6" },
+  { key:"I", group:"cycle", label:"Swing\nBack 7" },
+  { key:"J", group:"cycle", label:"Swing\nBack 8" },
+  { key:"K", group:"cycle", label:"Swing\nBack 9" },
+  { key:"L", group:"cycle", label:"Swing\nBack 10" },
+  { key:"M", group:"dump",  label:"Truck Stop\nto Reverse" },
+  { key:"N", group:"dump",  label:"Bin\nDown" },
+  { key:"O", group:"ret",   label:"Truck Stop\nPos 1" }
+];
+
+const INIT_ROWS = 200;
+const STORAGE_KEY = "jvc-cycle-timer-v2";
+
+// ======================== STATE ========================
+let state = { studies: [], activeIdx: -1, modal: null, editVal: "" };
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (d) { state.studies = d.studies || []; state.activeIdx = d.activeIdx ?? -1; }
+    if (state.activeIdx >= state.studies.length) state.activeIdx = state.studies.length - 1;
+  } catch(e) {}
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ studies: state.studies, activeIdx: state.activeIdx }));
+  } catch(e) {}
+}
+
+function emptyGrid(n) {
+  const g = [];
+  for (let i = 0; i < n; i++) { const r = { truck:"" }; COLS.forEach(c => r[c.key] = ""); g.push(r); }
+  return g;
+}
+
+function vib() { if (navigator.vibrate) navigator.vibrate(25); }
+function now() { return new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
+
+// ======================== ACTIONS ========================
+function newStudy() {
+  const d = new Date();
+  state.studies.push({
+    name: d.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}) + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),
+    grid: emptyGrid(INIT_ROWS)
+  });
+  state.activeIdx = state.studies.length - 1;
+  save(); render();
+}
+
+function switchStudy(i) { state.activeIdx = i; save(); render(); }
+
+function deleteStudy(i) {
+  if (!confirm("Delete '" + state.studies[i].name + "'?")) return;
+  state.studies.splice(i, 1);
+  if (state.activeIdx >= state.studies.length) state.activeIdx = state.studies.length - 1;
+  save(); render();
+}
+
+function addRows() {
+  const s = state.studies[state.activeIdx]; if (!s) return;
+  for (let i = 0; i < 10; i++) { const r = {truck:""}; COLS.forEach(c => r[c.key] = ""); s.grid.push(r); }
+  save(); render();
+}
+
+function setTruck(ri, val) {
+  state.studies[state.activeIdx].grid[ri].truck = val; save();
+}
+
+function tapCell(ri, ck) {
+  const s = state.studies[state.activeIdx]; if (!s) return;
+  const cur = s.grid[ri][ck];
+  if (!cur) {
+    vib(); s.grid[ri][ck] = now(); save(); render();
+  } else {
+    state.modal = { ri, ck, cur }; state.editVal = cur; render();
+  }
+}
+
+function restamp() {
+  const m = state.modal; if (!m) return;
+  vib(); state.studies[state.activeIdx].grid[m.ri][m.ck] = now();
+  state.modal = null; save(); render();
+}
+function clearCell() {
+  const m = state.modal; if (!m) return;
+  state.studies[state.activeIdx].grid[m.ri][m.ck] = "";
+  state.modal = null; save(); render();
+}
+function saveEdit() {
+  const m = state.modal; if (!m) return;
+  state.studies[state.activeIdx].grid[m.ri][m.ck] = state.editVal;
+  state.modal = null; save(); render();
+}
+function closeModal() { state.modal = null; render(); }
+
+function exportCSV() {
+  const s = state.studies[state.activeIdx]; if (!s) return;
+  let csv = "Row,Truck No.," + COLS.map(c => c.label.replace("\n"," ")).join(",") + "\n";
+  s.grid.forEach((r, i) => {
+    csv += [i+1, r.truck||"", ...COLS.map(c => r[c.key]||"")].join(",") + "\n";
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = (s.name||"study").replace(/\s/g,"_") + ".csv";
+  a.click();
+}
+
+// ======================== RENDER ========================
+function render() {
+  const app = document.getElementById("app");
+  const s = state.activeIdx >= 0 ? state.studies[state.activeIdx] : null;
+
+  let filled = 0, trucks = 0;
+  if (s) s.grid.forEach(r => {
+    if (r.truck) trucks++;
+    COLS.forEach(c => { if (r[c.key]) filled++; });
+  });
+
+  let h = "";
+
+  // TOP BAR
+  h += `<div class="top-bar"><div class="top-row">
+    <div class="logo">CYCLE TIMER<small>JVChantete Earthworks</small></div>
+    <div class="top-actions">
+      ${s ? '<button class="icon-btn" onclick="exportCSV()">CSV ↓</button>' : ''}
+      ${s ? '<button class="icon-btn" onclick="addRows()">+10 Rows</button>' : ''}
+    </div>
+  </div></div>`;
+
+  // STUDY TABS
+  h += '<div class="study-bar">';
+  state.studies.forEach((st, i) => {
+    h += `<div class="study-tab ${i===state.activeIdx?'active':''}" onclick="switchStudy(${i})">
+      <span>${st.name}</span>
+      <span class="close" onclick="event.stopPropagation();deleteStudy(${i})">✕</span>
+    </div>`;
+  });
+  h += '<button class="add-study" onclick="newStudy()">+ New</button></div>';
+
+  // CONTENT
+  if (!s) {
+    h += `<div class="grid-wrap"><div class="empty-state">
+      <div class="empty-icon">⏱</div>
+      <div class="empty-title">NO ACTIVE STUDY</div>
+      <div class="empty-text">Tap "+ New" to start a time study.<br>Each study has ${INIT_ROWS} rows. Tap any cell to stamp the time.</div>
+      <button class="empty-btn" onclick="newStudy()">+ NEW STUDY</button>
+    </div></div>`;
+  } else {
+    h += '<div class="grid-wrap"><table>';
+
+    // HEADER ROW 1 — group headers
+    h += '<thead><tr>';
+    h += '<th class="sticky" style="left:0;min-width:28px;background:var(--surface)">#</th>';
+    h += '<th class="sticky" style="left:28px;min-width:100px;background:var(--surface)">Truck No.</th>';
+    h += '<th colspan="2" class="group-header col-first" style="color:var(--pink)">First Bucket Dump</th>';
+    h += '<th colspan="9" class="group-header col-cycle" style="color:var(--blue)">Cycle Time</th>';
+    h += '<th colspan="2" class="group-header col-dump" style="color:var(--amber)">Dump &amp; Manoeuvre</th>';
+    h += '<th class="group-header col-ret" style="color:var(--green)">Return</th>';
+    h += '</tr>';
+
+    // HEADER ROW 2 — sub-columns
+    h += '<tr>';
+    h += '<th class="sticky" style="left:0;min-width:28px;background:var(--surface)"></th>';
+    h += '<th class="sticky" style="left:28px;min-width:100px;background:var(--surface)"></th>';
+    COLS.forEach(c => {
+      const cls = c.group==="first"?"col-first":c.group==="cycle"?"col-cycle":c.group==="dump"?"col-dump":"col-ret";
+      h += `<th class="${cls}" style="white-space:pre-line;line-height:1.3;padding:4px 2px;font-size:9px">${c.label}</th>`;
+    });
+    h += '</tr></thead>';
+
+    // DATA ROWS
+    h += '<tbody>';
+    s.grid.forEach((row, i) => {
+      h += '<tr>';
+      h += `<td class="row-num">${i+1}</td>`;
+      h += `<td class="truck-cell" style="left:28px"><select class="truck-select" onchange="setTruck(${i},this.value)">`;
+      TRUCKS.forEach(t => {
+        h += `<option value="${t}" ${row.truck===t?'selected':''}>${t||'—'}</option>`;
+      });
+      h += '</select></td>';
+
+      COLS.forEach(c => {
+        const v = row[c.key];
+        h += `<td class="ts-cell ${v?'has-value':''}" onclick="tapCell(${i},'${c.key}')">`;
+        h += v ? `<div class="ts-value">${v}</div>` : '<div class="ts-empty">·</div>';
+        h += '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
+  // BOTTOM BAR
+  h += `<div class="bottom-bar">
+    <div class="status">
+      <div class="status-item"><span class="dot green"></span>${filled} stamps</div>
+      <div class="status-item"><span class="dot amber"></span>${trucks} trucks</div>
+    </div>
+    <div>${s ? s.grid.length + ' rows' : ''}</div>
+  </div>`;
+
+  // MODAL
+  if (state.modal) {
+    const m = state.modal;
+    const col = COLS.find(c => c.key === m.ck);
+    const nm = col ? col.label.replace("\n"," ") : m.ck;
+
+    h += `<div class="modal-overlay" onclick="closeModal()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title">Row ${m.ri+1} — ${nm}</div>
+        <div class="modal-sub">Tap to re-stamp, edit manually, or clear.</div>
+        <input class="modal-input" type="text" value="${state.editVal}" oninput="state.editVal=this.value" placeholder="hh:mm:ss">
+        <button class="modal-btn stamp" onclick="restamp()">⏱ RE-STAMP (${now()})</button>
+        <button class="modal-btn" onclick="saveEdit()">✓ SAVE EDIT</button>
+        <button class="modal-btn clear" onclick="clearCell()">✕ CLEAR</button>
+        <button class="modal-btn cancel" onclick="closeModal()">CANCEL</button>
+      </div>
+    </div>`;
+  }
+
+  app.innerHTML = h;
+}
+
+// ======================== INIT ========================
+load();
+render();
+</script>
+</body>
+</html>
